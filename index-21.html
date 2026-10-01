@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>مكتبة الطباعة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F6F7F9;--ink:#1E2433;--muted:#59627A;--line:#D5DAE4;--action:#00719E;--c:#00AEEF;--m:#EC008C;--y:#FFF200;--white:#fff}
+*{box-sizing:border-box}
+html{scroll-padding-bottom:110px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;line-height:1.6;padding-bottom:110px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;max-width:980px;margin:auto}
+.brand{font-weight:700;font-size:1.05rem}
+.lang{font:inherit;font-weight:600;background:none;border:1.5px solid var(--ink);color:var(--ink);border-radius:999px;padding:4px 16px;cursor:pointer}
+main{max-width:980px;margin:auto;padding:0 18px}
+h1{font-size:clamp(1.6rem,5vw,2.6rem);line-height:1.2;margin:8px 0}
+.sub{color:var(--muted);max-width:52ch;margin:0 0 18px}
+
+/* تبويبات الخدمات */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.tab{font:inherit;font-weight:600;font-size:.9rem;background:var(--white);border:1.5px solid var(--line);border-radius:999px;padding:7px 16px;cursor:pointer;color:var(--muted)}
+.tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+.layout{display:grid;gap:22px}
+@media(min-width:860px){.layout{grid-template-columns:1.25fr 1fr;align-items:start}.ticket{position:sticky;top:16px}}
+form{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px}
+label{display:grid;gap:5px;font-weight:600;font-size:.95rem}
+input,select,textarea{font:inherit;font-weight:400;color:var(--ink);background:var(--white);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;width:100%}
+textarea{min-height:76px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hint{font-weight:400;color:var(--muted);font-size:.85rem}
+.hp{position:absolute;inset-inline-start:-9999px;height:0;overflow:hidden}
+
+/* فاتورة */
+.ticket{background:var(--white);border:1.5px dashed var(--ink);border-radius:4px;padding:0 18px 18px}
+.strip{display:flex;height:12px;margin:0 -18px 14px}
+.strip i{flex:1}.strip i:nth-child(1){background:var(--c)}.strip i:nth-child(2){background:var(--m)}.strip i:nth-child(3){background:var(--y)}.strip i:nth-child(4){background:var(--ink)}
+.ticket h2{font-size:1.05rem;margin:0 0 10px}
+.ticket dl{margin:0}
+.ticket .ln{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:.93rem}
+.ticket dt{color:var(--muted)}.ticket dd{margin:0;font-variant-numeric:tabular-nums;font-weight:600}
+.note{font-size:.85rem;color:var(--muted);margin:12px 0 0}
+
+/* شريط الإجمالي */
+.bar{position:fixed;inset-inline:0;bottom:0;background:var(--ink);color:#fff;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;align-items:center;gap:14px;z-index:5}
+.bar small{display:block;opacity:.75;font-size:.8rem}
+.bar strong{font-size:1.5rem;font-variant-numeric:tabular-nums;color:var(--y)}
+.btn{font:inherit;font-weight:700;background:var(--y);color:var(--ink);border:0;border-radius:6px;padding:12px 22px;cursor:pointer;min-height:46px}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.alt{background:var(--action);color:#fff;text-decoration:none;display:inline-flex;align-items:center}
+.btn.line{background:none;border:1.5px solid var(--ink);color:var(--ink)}
+#err{color:#B00020;font-weight:600;margin:0}
+#done{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:24px}
+#done[hidden],#err[hidden],.bar[hidden]{display:none}
+.code{font-size:2.4rem;font-weight:700;letter-spacing:.06em;direction:ltr;text-align:start;margin:6px 0}
+.acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="top"><span class="brand" id="brand"></span><button class="lang" id="langBtn" type="button"></button></header>
+<main>
+  <h1 data-i18n="title"></h1>
+  <p class="sub" data-i18n="sub"></p>
+
+  <!-- تبويبات الخدمات -->
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-svc="color" data-i18n="svcColor"></button>
+    <button class="tab" role="tab" data-svc="bw" data-i18n="svcBW"></button>
+    <button class="tab" role="tab" data-svc="scan" data-i18n="svcScan"></button>
+    <button class="tab" role="tab" data-svc="bind" data-i18n="svcBind"></button>
+  </div>
+
+  <div class="layout" id="layout">
+    <form id="f" novalidate>
+      <!-- حقول مشتركة -->
+      <label><span data-i18n="name"></span><input id="name" autocomplete="name" required maxlength="60"></label>
+      <label><span data-i18n="phone"></span><input id="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" dir="ltr" placeholder="249XXXXXXXXX"></label>
+
+      <!-- حقول الطباعة الملونة + أبيض وأسود -->
+      <div id="printFields">
+        <div class="row">
+          <label><span data-i18n="pages"></span><input id="pages" type="number" inputmode="numeric" min="1" max="2000" value="10"></label>
+          <label><span data-i18n="copies"></span><input id="copies" type="number" inputmode="numeric" min="1" max="500" value="1"></label>
+        </div>
+        <div class="row" id="sizeRow">
+          <label><span data-i18n="size"></span><select id="size"><option value="A4">A4</option><option value="A3">A3</option></select></label>
+          <label><span data-i18n="paper"></span><select id="paper"><option value="normal" data-i18n="normal"></option><option value="glossy" data-i18n="glossy"></option></select></label>
+        </div>
+        <label><span data-i18n="sides"></span><select id="sides"><option value="single" data-i18n="single"></option><option value="double" data-i18n="double"></option></select></label>
+      </div>
+
+      <!-- حقول التصوير -->
+      <div id="scanFields" hidden>
+        <label><span data-i18n="scanPages"></span><input id="scanPages" type="number" inputmode="numeric" min="1" max="2000" value="5"></label>
+      </div>
+
+      <!-- حقول التغليف -->
+      <div id="bindFields" hidden>
+        <label><span data-i18n="bindType"></span>
+          <select id="bindType">
+            <option value="plastic" data-i18n="bindPlastic"></option>
+            <option value="carton" data-i18n="bindCarton"></option>
+            <option value="premium" data-i18n="bindPremium"></option>
+          </select>
+        </label>
+        <label><span data-i18n="bindCount"></span><input id="bindCount" type="number" inputmode="numeric" min="1" max="100" value="1"></label>
+      </div>
+
+      <label><span data-i18n="notes"></span><textarea id="notes" maxlength="300"></textarea></label>
+      <div class="hp" aria-hidden="true"><label>Website<input id="site" tabindex="-1" autocomplete="off"></label></div>
+      <p id="err" role="alert" hidden></p>
+      <p class="hint" data-i18n="fileHint"></p>
+    </form>
+
+    <aside class="ticket" aria-live="polite">
+      <div class="strip"><i></i><i></i><i></i><i></i></div>
+      <h2 data-i18n="ticket"></h2>
+      <dl id="ticketRows"></dl>
+      <p class="note" data-i18n="sample"></p>
+    </aside>
+  </div>
+
+  <section id="done" hidden>
+    <h2 data-i18n="doneTitle"></h2>
+    <p data-i18n="doneText"></p>
+    <div class="code" id="code"></div>
+    <div class="acts">
+      <a class="btn alt" id="wa" hidden target="_blank" rel="noopener" data-i18n="sendFile"></a>
+      <button class="btn line" id="copy" type="button" data-i18n="copy"></button>
+      <button class="btn line" id="again" type="button" data-i18n="again"></button>
+    </div>
+  </section>
+</main>
+
+<div class="bar" id="bar">
+  <div><small data-i18n="total"></small><strong id="total">0</strong></div>
+  <button class="btn" id="send" type="submit" form="f" data-i18n="submit"></button>
+</div>
+
+<script type="module">
+/* ===== إعدادات المكتبة ===== */
+const SHOP = { nameAr:"مكتبة الطباعة", nameEn:"Print Shop", whatsapp:"249906799171" };
+const PRICES = {
+  color:  { A4:300, A3:600, paper:{ normal:0, glossy:100 } },
+  bw:     { A4:100, A3:200, paper:{ normal:0, glossy:50  } },
+  scan:   { perPage:50 },
+  bind:   { plastic:1500, carton:2500, premium:5000 }
+};
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyAeYbn5eMh78WgYDU5bRute1gUOln8YzGc",
+  authDomain:"print-shop-system-915d8.firebaseapp.com",
+  projectId:"print-shop-system-915d8",
+  storageBucket:"print-shop-system-915d8.firebasestorage.app",
+  messagingSenderId:"768324514085",
+  appId:"1:768324514085:web:33c47dd30159e335282acc"
+};
+/* ========================== */
+
+const T = {
+ar:{
+  title:"خدمات المكتبة",sub:"اختر الخدمة، عبّئ الطلب، وشوف السعر فوراً.",
+  svcColor:"طباعة ملونة",svcBW:"أبيض وأسود",svcScan:"تصوير مستندات",svcBind:"تغليف",
+  name:"الاسم",phone:"رقم الواتساب",pages:"عدد الصفحات",copies:"عدد النسخ",
+  size:"حجم الورق",paper:"نوع الورق",sides:"الطباعة",
+  scanPages:"عدد الصفحات المراد تصويرها",
+  bindType:"نوع التغليف",bindCount:"عدد الكتب/الملفات",
+  bindPlastic:"بلاستيك",bindCarton:"كرتون",bindPremium:"فاخر",
+  normal:"عادي",glossy:"لامع",single:"وجه واحد",double:"وجهين",
+  notes:"ملاحظات (اختياري)",fileHint:"ترسل الملف بالواتساب بعد ما تاخد رقم الطلب.",
+  ticket:"فاتورة مبدئية",sample:"الأسعار تجريبية وتتغير حسب المكتبة.",
+  total:"الإجمالي",submit:"أرسل الطلب",sending:"جاري الإرسال...",cur:"جنيه",
+  doneTitle:"وصل طلبك",doneText:"رقم طلبك هو:",
+  sendFile:"ارسل الملف بالواتساب",copy:"انسخ الرقم",copied:"تم النسخ",again:"طلب جديد",
+  eName:"اكتب اسمك.",ePhone:"اكتب رقم واتساب صحيح.",eNum:"تحقق من الأرقام المدخلة.",
+  eDb:"الموقع لم يُربط بقاعدة البيانات بعد.",eFail:"ما قدرنا نرسل الطلب. تأكد من الاتصال.",
+  eWait:"انتظر ثواني قبل إرسال طلب جديد.",waMsg:"مرحباً، رقم طلبي ",
+  rPrintedPages:"الصفحات المطبوعة",rPrint:"سعر الطباعة",rPaper:"إضافة الورق",
+  rScanPages:"الصفحات المصوّرة",rScanCost:"سعر التصوير",
+  rBindType:"نوع التغليف",rBindCount:"العدد",rBindCost:"سعر التغليف"
+},
+en:{
+  title:"Library Services",sub:"Pick a service, fill the form, and see the price instantly.",
+  svcColor:"Color printing",svcBW:"Black & white",svcScan:"Scanning",svcBind:"Binding",
+  name:"Name",phone:"WhatsApp number",pages:"Pages",copies:"Copies",
+  size:"Paper size",paper:"Paper type",sides:"Printing",
+  scanPages:"Pages to scan",
+  bindType:"Binding type",bindCount:"Number of books/files",
+  bindPlastic:"Plastic",bindCarton:"Cardboard",bindPremium:"Premium",
+  normal:"Standard",glossy:"Glossy",single:"Single-sided",double:"Double-sided",
+  notes:"Notes (optional)",fileHint:"Send the file on WhatsApp after you get your order number.",
+  ticket:"Estimate",sample:"Prices are samples and change per shop.",
+  total:"Total",submit:"Send order",sending:"Sending...",cur:"SDG",
+  doneTitle:"Order received",doneText:"Your order number is:",
+  sendFile:"Send file on WhatsApp",copy:"Copy number",copied:"Copied",again:"New order",
+  eName:"Enter your name.",ePhone:"Enter a valid WhatsApp number.",eNum:"Check the numbers you entered.",
+  eDb:"The site is not connected to the database yet.",eFail:"Could not send. Check your connection.",
+  eWait:"Wait a few seconds before sending another order.",waMsg:"Hello, my order number is ",
+  rPrintedPages:"Printed pages",rPrint:"Printing",rPaper:"Paper extra",
+  rScanPages:"Scanned pages",rScanCost:"Scanning cost",
+  rBindType:"Binding type",rBindCount:"Count",rBindCost:"Binding cost"
+}};
+
+const $ = id => document.getElementById(id);
+let lang="ar", svc="color";
+try{ lang=localStorage.getItem("lang")||"ar"; }catch(e){}
+const fmt = n => Number(n).toLocaleString("en-US");
+const num = id => { const v=Number($(id)?.value); return Number.isInteger(v)?v:0; };
+
+function calc(){
+  const t=T[lang];
+  const rows=[];
+  let total=0;
+  if(svc==="color"||svc==="bw"){
+    const p=PRICES[svc], pages=num("pages"), copies=num("copies");
+    const ok=pages>=1&&pages<=2000&&copies>=1&&copies<=500;
+    const printed=ok?(($("sides").value==="double"?Math.ceil(pages/2):pages)*copies):0;
+    const allPages=ok?pages*copies:0;
+    const print=allPages*(p[$("size").value]||0);
+    const paperExtra=printed*(p.paper[$("paper").value]||0);
+    total=print+paperExtra;
+    rows.push({k:t.rPrintedPages,v:fmt(allPages)});
+    rows.push({k:t.rPrint,v:fmt(print)+" "+t.cur});
+    if(paperExtra>0) rows.push({k:t.rPaper,v:fmt(paperExtra)+" "+t.cur});
+  } else if(svc==="scan"){
+    const pages=num("scanPages"), ok=pages>=1&&pages<=2000;
+    const cost=ok?pages*PRICES.scan.perPage:0;
+    total=cost;
+    rows.push({k:t.rScanPages,v:fmt(ok?pages:0)});
+    rows.push({k:t.rScanCost,v:fmt(cost)+" "+t.cur});
+  } else if(svc==="bind"){
+    const count=num("bindCount"), ok=count>=1&&count<=100;
+    const btype=$("bindType").value;
+    const cost=ok?count*(PRICES.bind[btype]||0):0;
+    total=cost;
+    const bindNames={plastic:t.bindPlastic,carton:t.bindCarton,premium:t.bindPremium};
+    rows.push({k:t.rBindType,v:bindNames[btype]||btype});
+    rows.push({k:t.rBindCount,v:fmt(ok?count:0)});
+    rows.push({k:t.rBindCost,v:fmt(cost)+" "+t.cur});
+  }
+  return {rows,total};
+}
+
+function renderTicket(){
+  const {rows,total}=calc(), t=T[lang];
+  const dl=$("ticketRows"); dl.replaceChildren();
+  rows.forEach(r=>{
+    const div=document.createElement("div"); div.className="ln";
+    const dt=document.createElement("dt"); dt.textContent=r.k;
+    const dd=document.createElement("dd"); dd.textContent=r.v;
+    div.append(dt,dd); dl.append(div);
+  });
+  $("total").textContent=fmt(total)+" "+t.cur;
+}
+
+function showSvc(s){
+  svc=s;
+  $("printFields").hidden=!(s==="color"||s==="bw");
+  $("sizeRow").hidden=s==="bw"&&false; // أبيض وأسود: حجم الورق مهم
+  $("scanFields").hidden=s!=="scan";
+  $("bindFields").hidden=s!=="bind";
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.svc===s));
+  renderTicket();
+}
+
+function applyLang(){
+  const t=T[lang];
+  document.documentElement.lang=lang;
+  document.documentElement.dir=lang==="ar"?"rtl":"ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent=t[el.dataset.i18n]||"");
+  $("brand").textContent=lang==="ar"?SHOP.nameAr:SHOP.nameEn;
+  $("langBtn").textContent=lang==="ar"?"English":"عربي";
+  document.title=$("brand").textContent;
+  renderTicket();
+}
+
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showSvc(b.dataset.svc));
+$("langBtn").onclick=()=>{lang=lang==="ar"?"en":"ar";try{localStorage.setItem("lang",lang);}catch(e){}applyLang();};
+["pages","copies","size","paper","sides","scanPages","bindType","bindCount"].forEach(id=>{
+  const el=$(id); if(el) el.addEventListener("input",renderTicket);
+});
+
+function showErr(msg){const e=$("err");e.textContent=msg;e.hidden=!msg;}
+function makeId(){return "P"+Date.now().toString(36).slice(-5).toUpperCase()+Math.floor(Math.random()*36).toString(36).toUpperCase();}
+let db;
+async function getDb(){
+  if(db)return db;
+  const V="https://www.gstatic.com/firebasejs/10.12.2/";
+  const {initializeApp}=await import(V+"firebase-app.js");
+  const fs=await import(V+"firebase-firestore.js");
+  db={fs,d:fs.getFirestore(initializeApp(FIREBASE_CONFIG))};
+  return db;
+}
+
+$("f").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  const t=T[lang], name=$("name").value.trim(), phone=$("phone").value.replace(/[\s-]/g,"");
+  showErr("");
+  if(name.length<2)return showErr(t.eName);
+  if(!/^\+?\d{9,15}$/.test(phone))return showErr(t.ePhone);
+  const {total}=calc();
+  if(total<=0)return showErr(t.eNum);
+  if($("site").value)return finish(makeId());
+  if(!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey.startsWith("PASTE"))return showErr(t.eDb);
+  try{if(Date.now()-Number(localStorage.getItem("lastOrder")||0)<30000)return showErr(t.eWait);}catch(e){}
+  const btn=$("send"); btn.disabled=true; btn.textContent=t.sending;
+  const id=makeId();
+  try{
+    const {fs,d}=await getDb();
+    const data={name,phone,service:svc,total,status:"new",notes:$("notes").value.trim().slice(0,300),createdAt:fs.serverTimestamp()};
+    if(svc==="color"||svc==="bw"){
+      data.pages=num("pages"); data.copies=num("copies");
+      data.size=$("size").value; data.paper=$("paper").value; data.sides=$("sides").value;
+    } else if(svc==="scan"){
+      data.pages=num("scanPages");
+    } else if(svc==="bind"){
+      data.bindType=$("bindType").value; data.bindCount=num("bindCount");
+    }
+    await fs.setDoc(fs.doc(d,"orders",id),data);
+    try{localStorage.setItem("lastOrder",String(Date.now()));}catch(e){}
+    finish(id);
+  }catch(e){console.error(e);showErr(T[lang].eFail);}
+  btn.disabled=false; btn.textContent=t.submit;
+});
+
+function finish(id){
+  $("layout").hidden=true; $("bar").hidden=true; $("done").hidden=false;
+  $("code").textContent=id;
+  const wa=$("wa");
+  if(/^\d{8,15}$/.test(SHOP.whatsapp)){
+    wa.href="https://wa.me/"+SHOP.whatsapp+"?text="+encodeURIComponent(T[lang].waMsg+id);
+    wa.hidden=false;
+  }
+  window.scrollTo(0,0);
+}
+$("copy").onclick=async()=>{
+  try{await navigator.clipboard.writeText($("code").textContent);$("copy").textContent=T[lang].copied;}catch(e){}
+};
+$("again").onclick=()=>{
+  $("done").hidden=true;$("layout").hidden=false;$("bar").hidden=false;
+  $("copy").textContent=T[lang].copy;$("f").reset();renderTicket();
+};
+
+applyLang();
+showSvc("color");
+</script>
+</body>
+</html>
