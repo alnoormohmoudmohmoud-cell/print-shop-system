@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تتبع الطلب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F6F7F9;--ink:#1E2433;--muted:#59627A;--line:#D5DAE4;--action:#00719E;--c:#00AEEF;--m:#EC008C;--y:#FFF200;--white:#fff;--green:#1A7F4B;--orange:#C46200}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;line-height:1.6;min-height:100dvh;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;max-width:640px;margin:auto;width:100%}
+.brand{font-weight:700;font-size:1.05rem;text-decoration:none;color:inherit}
+.lang{font:inherit;font-weight:600;background:none;border:1.5px solid var(--ink);color:var(--ink);border-radius:999px;padding:4px 16px;cursor:pointer}
+main{flex:1;max-width:640px;margin:auto;padding:0 18px 40px;width:100%}
+h1{font-size:clamp(1.6rem,5vw,2.4rem);margin:8px 0 6px}
+.sub{color:var(--muted);margin:0 0 22px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:20px}
+label{display:grid;gap:6px;font-weight:600;margin-bottom:14px}
+input{font:inherit;color:var(--ink);background:var(--white);border:1.5px solid var(--line);border-radius:6px;padding:11px 14px;width:100%;text-transform:uppercase;letter-spacing:.08em;direction:ltr}
+input:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.btn{font:inherit;font-weight:700;background:var(--ink);color:#fff;border:0;border-radius:6px;padding:12px 24px;cursor:pointer;width:100%;font-size:1rem}
+.btn:disabled{opacity:.6;cursor:wait}
+.err{color:#B00020;font-weight:600;margin:10px 0 0}
+/* نتيجة */
+#result{margin-top:20px}
+.status-bar{border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.05rem}
+.status-bar.new{background:#EAF4FF;color:var(--action)}
+.status-bar.printing{background:#FFF8E5;color:var(--orange)}
+.status-bar.ready{background:#E8F8EE;color:var(--green)}
+.status-bar.done{background:#F0F0F0;color:var(--muted)}
+.dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.new .dot{background:var(--c)}
+.printing .dot{background:var(--orange);animation:pulse 1.2s infinite}
+.ready .dot{background:var(--green)}
+.done .dot{background:var(--muted)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.details{display:grid;gap:8px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.row:last-child{border-bottom:none}
+.row dt{color:var(--muted)}
+.row dd{margin:0;font-weight:600;text-align:start}
+.back{display:inline-block;margin-top:18px;color:var(--action);font-weight:600;text-decoration:none;font-size:.95rem}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" id="brand"></a>
+  <button class="lang" id="langBtn" type="button"></button>
+</header>
+<main>
+  <h1 data-i18n="title"></h1>
+  <p class="sub" data-i18n="sub"></p>
+
+  <div class="card">
+    <form id="tf">
+      <label><span data-i18n="label"></span>
+        <input id="code" maxlength="7" required placeholder="P9N96RX" autocomplete="off" spellcheck="false">
+      </label>
+      <button class="btn" id="searchBtn" type="submit" data-i18n="search"></button>
+      <p class="err" id="err" role="alert" hidden></p>
+    </form>
+
+    <div id="result" hidden>
+      <div class="status-bar" id="statusBar">
+        <span class="dot"></span><span id="statusText"></span>
+      </div>
+      <dl class="details" id="detailRows"></dl>
+      <a class="back" href="#" id="again" data-i18n="again"></a>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyAeYbn5eMh78WgYDU5bRute1gUOln8YzGc",
+  authDomain:"print-shop-system-915d8.firebaseapp.com",
+  projectId:"print-shop-system-915d8",
+  storageBucket:"print-shop-system-915d8.firebasestorage.app",
+  messagingSenderId:"768324514085",
+  appId:"1:768324514085:web:33c47dd30159e335282acc"
+};
+const SHOP = { nameAr:"مكتبة الطباعة", nameEn:"Print Shop" };
+
+const T = {
+ar:{
+  title:"تتبع طلبك",sub:"اكتب رقم طلبك عشان تشوف حالته.",
+  label:"رقم الطلب",search:"بحث",again:"← بحث عن طلب آخر",
+  notFound:"الرقم ما موجود، تأكد منه وحاول مرة ثانية.",
+  errConn:"ما قدرنا نتصل بقاعدة البيانات. تأكد من الاتصال.",
+  statusNew:"استلمنا طلبك ✓",statusPrinting:"قيد الطباعة الآن…",
+  statusReady:"جاهز للاستلام 🎉",statusDone:"تم التسليم ✓",
+  dService:"الخدمة",dPages:"الصفحات",dCopies:"النسخ",dSize:"الحجم",
+  dPaper:"الورق",dSides:"الطباعة",dBindType:"نوع التغليف",dBindCount:"العدد",
+  dTotal:"الإجمالي",dDate:"تاريخ الطلب",
+  svcColor:"طباعة ملونة",svcBW:"أبيض وأسود",svcScan:"تصوير مستندات",svcBind:"تغليف",
+  normal:"عادي",glossy:"لامع",single:"وجه واحد",double:"وجهين",
+  bindPlastic:"بلاستيك",bindCarton:"كرتون",bindPremium:"فاخر",cur:"جنيه"
+},
+en:{
+  title:"Track your order",sub:"Enter your order number to see its status.",
+  label:"Order number",search:"Search",again:"← Search another order",
+  notFound:"Order not found. Check the number and try again.",
+  errConn:"Could not connect to the database. Check your connection.",
+  statusNew:"Order received ✓",statusPrinting:"Printing now…",
+  statusReady:"Ready for pickup 🎉",statusDone:"Delivered ✓",
+  dService:"Service",dPages:"Pages",dCopies:"Copies",dSize:"Size",
+  dPaper:"Paper",dSides:"Printing",dBindType:"Binding type",dBindCount:"Count",
+  dTotal:"Total",dDate:"Order date",
+  svcColor:"Color printing",svcBW:"Black & white",svcScan:"Scanning",svcBind:"Binding",
+  normal:"Standard",glossy:"Glossy",single:"Single-sided",double:"Double-sided",
+  bindPlastic:"Plastic",bindCarton:"Cardboard",bindPremium:"Premium",cur:"SDG"
+}};
+
+const $ = id => document.getElementById(id);
+let lang = "ar";
+try { lang = localStorage.getItem("lang") || "ar"; } catch(e) {}
+
+function applyLang(){
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t[el.dataset.i18n] || "");
+  $("brand").textContent = lang === "ar" ? SHOP.nameAr : SHOP.nameEn;
+  $("langBtn").textContent = lang === "ar" ? "English" : "عربي";
+  document.title = t.title + " | " + $("brand").textContent;
+}
+$("langBtn").onclick = () => { lang = lang === "ar" ? "en" : "ar"; try{localStorage.setItem("lang",lang);}catch(e){} applyLang(); };
+
+let db;
+async function getDb(){
+  if(db) return db;
+  const V = "https://www.gstatic.com/firebasejs/10.12.2/";
+  const {initializeApp} = await import(V + "firebase-app.js");
+  const fs = await import(V + "firebase-firestore.js");
+  db = {fs, d: fs.getFirestore(initializeApp(FIREBASE_CONFIG))};
+  return db;
+}
+
+$("tf").onsubmit = async e => {
+  e.preventDefault();
+  const t = T[lang];
+  const code = $("code").value.trim().toUpperCase();
+  if(!code) return;
+  $("err").hidden = true;
+  $("result").hidden = true;
+  const btn = $("searchBtn"); btn.disabled = true;
+  try {
+    const {fs, d} = await getDb();
+    const snap = await fs.getDoc(fs.doc(d, "orders", code));
+    if(!snap.exists()){ $("err").textContent = t.notFound; $("err").hidden = false; btn.disabled = false; return; }
+    showResult(code, snap.data(), t);
+  } catch(err) { $("err").textContent = t.errConn; $("err").hidden = false; }
+  btn.disabled = false;
+};
+
+function showResult(id, d, t){
+  const statusMap = {new:"statusNew", printing:"statusPrinting", ready:"statusReady", done:"statusDone"};
+  const svcMap = {color:"svcColor", bw:"svcBW", scan:"svcScan", bind:"svcBind"};
+  const bar = $("statusBar");
+  bar.className = "status-bar " + (d.status || "new");
+  $("statusText").textContent = t[statusMap[d.status]] || d.status;
+
+  const rows = [];
+  rows.push({k: t.dService, v: t[svcMap[d.service]] || d.service || "—"});
+  if(d.service === "color" || d.service === "bw" || !d.service){
+    if(d.pages)  rows.push({k: t.dPages,  v: d.pages});
+    if(d.copies) rows.push({k: t.dCopies, v: d.copies});
+    if(d.size)   rows.push({k: t.dSize,   v: d.size});
+    if(d.paper)  rows.push({k: t.dPaper,  v: t[d.paper] || d.paper});
+    if(d.sides)  rows.push({k: t.dSides,  v: t[d.sides] || d.sides});
+  } else if(d.service === "scan"){
+    if(d.pages) rows.push({k: t.dPages, v: d.pages});
+  } else if(d.service === "bind"){
+    const bindMap = {plastic:"bindPlastic", carton:"bindCarton", premium:"bindPremium"};
+    if(d.bindType)  rows.push({k: t.dBindType,  v: t[bindMap[d.bindType]] || d.bindType});
+    if(d.bindCount) rows.push({k: t.dBindCount, v: d.bindCount});
+  }
+  rows.push({k: t.dTotal, v: Number(d.total).toLocaleString("en-US") + " " + t.cur});
+  if(d.createdAt) rows.push({k: t.dDate, v: d.createdAt.toDate().toLocaleDateString(lang === "ar" ? "ar-SD" : "en-GB")});
+
+  const dl = $("detailRows"); dl.replaceChildren();
+  rows.forEach(r => {
+    const div = document.createElement("div"); div.className = "row";
+    const dt = document.createElement("dt"); dt.textContent = r.k;
+    const dd = document.createElement("dd"); dd.textContent = r.v;
+    div.append(dt, dd); dl.append(div);
+  });
+  $("result").hidden = false;
+}
+
+$("again").onclick = e => {
+  e.preventDefault();
+  $("result").hidden = true;
+  $("err").hidden = true;
+  $("code").value = "";
+  $("code").focus();
+};
+
+applyLang();
+// لو في رقم في الرابط مثل track.html?id=P9N96RX
+try {
+  const id = new URLSearchParams(location.search).get("id");
+  if(id){ $("code").value = id.toUpperCase(); $("tf").dispatchEvent(new Event("submit")); }
+} catch(e){}
+</script>
+</body>
+</html>
